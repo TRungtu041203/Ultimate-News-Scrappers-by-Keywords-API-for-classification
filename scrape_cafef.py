@@ -1,11 +1,16 @@
 import requests
+import os
 from bs4 import BeautifulSoup
 import csv
 import time
 from datetime import datetime
 
-# 1. List of keywords to search for
-keywords = [
+# -----------------------
+# 1. Keywords for Crawling
+# -----------------------
+
+# Search queries grouped by topic:
+video_games_search = [
     "trò chơi điện tử", 
     "công ty game",
     "nhà phát hành game",
@@ -13,8 +18,25 @@ keywords = [
     "nhà làm game",
     "thiết kế game"
 ]
+environment_search = [
+    "bảo vệ môi trường",
+    "Biến đổi khí hậu",
+    "Bảo vệ thiên nhiên",
+    "Giảm phát thải khí nhà kính",
+    "Bền vững",
+    "Trung hòa carbon"
+]
+AI_search = [
+    "Học máy",
+    "Trí tuệ nhân tạo",
+    "Artificial Intelligence"
+]
 
-# 2. Set up headers to mimic a browser (helps avoid being blocked by some sites)
+# All search queries for crawling (combine all lists)
+all_keywords = video_games_search + environment_search + AI_search
+
+
+# 2. Set up headers to mimic a browser (helps avoid being blocked)
 headers = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -23,40 +45,39 @@ headers = {
     )
 }
 
-def get_search_results(keyword):
+def get_search_results_page(keyword, page=1):
     """
-    Given a keyword, perform a search on VnExpress
-    and return a list of articles (with title, summary, link).
+    Given a keyword, perform a search on Cafef and return a list of articles (with title, summary, link)
+    for the specified page number.
     """
-    # A. Construct the search URL
-    #    Note: If VnExpress changes its search URL, update this pattern accordingly.
-    search_url = f"https://cafef.vn/tim-kiem.chn?keywords={keyword}"
-    
-    # B. Request the search page
-    response = requests.get(search_url, headers=headers)
+    # Construct the search URL with the page parameter.
+    search_url = f"https://cafef.vn/tim-kiem.chn?keywords={keyword}&page={page}"
+    try:
+        response = requests.get(search_url, headers=headers, timeout=10)
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching search results for keyword '{keyword}' on page {page}: {e}")
+        return []  # Return an empty list if there's an error
+
     soup = BeautifulSoup(response.text, "html.parser")
-    
-    # C. Find all article containers. (Adjust if the structure changes.)
     articles = soup.find_all("div", class_="item")
     
     results = []
     for art in articles:
-        # Extract title
+        # Extract title from <h3>
         title_tag = art.find("h3")
         if not title_tag:
-            # If we can't find a title, skip this item
             continue
-        
         title = title_tag.get_text(strip=True)
         
-        # Extract link
+        # Extract link from the <a> tag within the title tag
         link_tag = title_tag.find("a")
         link = link_tag["href"] if link_tag else ""
-        link = f"https://cafef.vn{link}"
-        # Extract summary from <p class="description">
+        link = f"https://cafef.vn{link}"  # Append base URL
+        
+        # Extract summary from <p class="sapo">
         summary_tag = art.find("p", class_="sapo")
         summary = summary_tag.get_text(strip=True) if summary_tag else ""
-
+        
         results.append({
             "Title": title,
             "Summary": summary,
@@ -65,52 +86,102 @@ def get_search_results(keyword):
     
     return results
 
+def get_all_search_results(keyword, max_pages=10):
+    """
+    Fetch search results for a given keyword across multiple pages.
+    Loops from page 1 to max_pages or until no more articles are found.
+    """
+    all_results = []
+    for page in range(1, max_pages + 1):
+        print(f"Getting page {page} for keyword '{keyword}'...")
+        page_results = get_search_results_page(keyword, page=page)
+        if not page_results:
+            print(f"No results found on page {page} for keyword '{keyword}'. Stopping.")
+            break  # No more results on further pages
+        all_results.extend(page_results)
+        time.sleep(1)  # Polite delay between page requests
+    return all_results
+
 def get_article_details(url):
     """
-    Given a link to a VnExpress article, fetch and return:
-    - Title
-    - Date
-    - Summary (from the article page)
-    - Content (the full text content of the article)
+    Given a link to a Cafef article, fetch and return:
+    - Title (from <h1>)
+    - Date (from <span class="pdate">)
+    - Summary (from <h2 class="sapo">)
+    - Content (from <div class="contentdetail">)
     """
-    response = requests.get(url, headers=headers)
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching article details from {url}: {e}")
+        return {"Date": "", "Title": "", "Summary": "", "Content": ""}
+    
     soup = BeautifulSoup(response.text, "html.parser")
     
-    # A. Extract the article title (in <h1>)
+    # Extract title from <h1>
     title_tag = soup.find("h1")
     title = title_tag.get_text(strip=True) if title_tag else ""
     
-    # B. Extract the article summary
-    #    found in <p class="short_intro"> or similar
+    # Extract summary from <h2 class="sapo">
     summary_tag = soup.find("h2", class_="sapo")
     summary = summary_tag.get_text(strip=True) if summary_tag else ""
     
-    # C. Extract the main content
-    #    VnExpress uses <article class="fck_detail"> for content
+    # Extract main content from <div class="contentdetail">
     content_div = soup.find("div", class_="contentdetail")
-    if content_div:
-        content = content_div.get_text(separator="\n", strip=True)
-    else:
-        content = ""
+    content = content_div.get_text(separator="\n", strip=True) if content_div else ""
     
-    #D. Extract the dates 
-    #   VNExpress 
-    date_tag = soup.find("span", class_ = "pdate")
-    date = date_tag.get_text(strip = True) if date_tag else ""
-
+    # Extract date from <span class="pdate">
+    date_tag = soup.find("span", class_="pdate")
+    date = date_tag.get_text(strip=True) if date_tag else ""
+    
     return {
         "Date": date,
         "Title": title,
         "Summary": summary,
-        "Content": content,
-
+        "Content": content
     }
 
-def crawl_vnexpress(keywords):
+def categorize_article(article_text):
     """
-    Orchestrates the entire crawling process:
-    1. For each keyword, get the search results.
-    2. For each search result, fetch the full article details.
+    Categorize the article based on its text (combination of title, summary, and content).
+    Returns a list of categories (one article can have multiple).
+    """
+    text_lower = article_text.lower()
+    
+    # Define keyword lists (all lowercase for matching)
+    video_games_keywords = ["trò chơi điện tử", "công ty game", "nhà phát hành game", 
+                              "nhà lập trình game", "nhà làm game", "thiết kế game"]
+    environment_keywords = ["bảo vệ môi trường", "biến đổi khí hậu", "bảo vệ thiên nhiên", 
+                            "giảm phát thải khí nhà kính", "bền vững", "trung hòa carbon"]
+    AI_keywords = ["học máy", "trí tuệ nhân tạo", "artificial intelligence"]
+    
+    categories = []
+    
+    # Category 1: Tổng quan ngành video games tại Việt Nam
+    if any(kw in text_lower for kw in video_games_keywords):
+        categories.append("Tổng quan ngành video games tại Việt Nam")
+    
+    # Category 2: Việc phát triển games tại Việt Nam, green gaming, và bảo vệ môi trường
+    if (any(kw in text_lower for kw in video_games_keywords) and 
+        any(kw in text_lower for kw in environment_keywords)):
+        categories.append("Việc phát triển games tại Việt Nam, green gaming, và bảo vệ môi trường")
+    
+    # Category 3: Việc phát triển games và sử dụng công cụ AIs
+    if (any(kw in text_lower for kw in video_games_keywords) and 
+        any(kw in text_lower for kw in AI_keywords)):
+        categories.append("Việc phát triển games và sử dụng công cụ AIs")
+    
+    # Category 4: Esports in Vietnam (assign if the text contains esports-related terms)
+    if "esports" in text_lower or "thể thao điện tử" in text_lower:
+        categories.append("Esports in Vietnam")
+    
+    return categories
+
+def crawl_cafef(keywords):
+    """
+    Orchestrates the crawling process for Cafef:
+    1. For each keyword, fetch all search results across multiple pages.
+    2. For each search result, fetch detailed article data.
     3. Return a consolidated list of all articles.
     """
     all_articles = []
@@ -118,48 +189,52 @@ def crawl_vnexpress(keywords):
     
     for keyword in keywords:
         print(f"Searching for keyword: {keyword}")
+        # Get all search results for the keyword (across multiple pages)
+        search_results = get_all_search_results(keyword, max_pages=10)
         
-        # 1. Get the search result list for the current keyword
-        search_results = get_search_results(keyword)
-        
-        # 2. For each search result, fetch more details from the article page
+        # For each result, fetch the full article details
         for result in search_results:
             url = result["Link"]
+            if not url:
+                continue
             
-            # If you want the full content, call get_article_details
             article_details = get_article_details(url)
-            
-            # Combine everything into one record
+             # Use detailed info if available; otherwise, fallback to search page values.
+            final_title = article_details["Title"] 
+            final_summary = article_details["Summary"]
+            # Combine text to use for categorization
+            combined_text = f"{final_title} {final_summary} {article_details['Content']}"
+            categories = categorize_article(combined_text)
+            # Convert list of categories to a comma-separated string.
+            categories_str = ", ".join(categories)
+
             article_data = {
                 "No": count,
                 "Date": article_details["Date"],
-                # If the article page has a more accurate Title, use that.
-                # Otherwise, fall back to the Title from the search result.
                 "Title": article_details["Title"] or result["Title"],
-                
-                # Same logic for summary
                 "Summary": article_details["Summary"] or result["Summary"],
-                
                 "Content": article_details["Content"],
-                "Link": url
+                "Link": url,
+                "Categories": categories_str
             }
-            
             all_articles.append(article_data)
             count += 1
-            
-            # Be polite: short delay between requests to avoid spamming the server
-            time.sleep(1)
+            time.sleep(1)  # Polite delay between article requests
     
     return all_articles
 
 if __name__ == "__main__":
-    # 3. Run the crawler for all keywords
-    articles = crawl_vnexpress(keywords)
+    # Run the crawler for all keywords
+    articles = crawl_cafef(all_keywords)
+
+    output_dir = r"D:\Data\vietnews\output"
+    os.makedirs(output_dir, exist_ok=True)
     
-    # 4. Generate a unique file name with a timestamp
+    # Generate a unique file name with a timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    csv_file = f"cafef_news_{timestamp}.csv"
+    csv_file = os.path.join(output_dir, f"cafef_news_cate_{timestamp}.csv")
     
+    # Write the results to a CSV file with UTF-8 BOM encoding for Excel compatibility
     with open(csv_file, mode="w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=["No", "Date", "Title", "Summary", "Content", "Link"])
         writer.writeheader()
@@ -167,3 +242,4 @@ if __name__ == "__main__":
             writer.writerow(art)
     
     print(f"Data saved to {csv_file}")
+    print("Crawling completed successfully.")
