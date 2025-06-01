@@ -1,0 +1,30 @@
+site_name: cafef
+base_url: https://cafef.vn
+search_url_pattern: https://cafef.vn/tim-kiem.chn?keywords={keyword}&page={page}
+
+selectors:
+  search:
+    article_container:
+      tag: div
+      class: item
+    title:
+      tag: h3
+      class: null
+    summary:
+      tag: p
+      class: sapo
+    link:
+      inside_title: true
+  article:
+    title:
+      tag: h1
+      class: null
+    summary:
+      tag: h2
+      class: sapo
+    content:
+      tag: div
+      class: contentdetail
+    date:
+      tag: span
+      class: pdate 

@@ -1,0 +1,23 @@
+site_name: viresa
+base_url: https://viresa.org.vn
+api_url: https://viresa.org.vn/api/news
+search_url_pattern: {api_url}?page={page}&slug={keyword}
+
+categories:
+  tin-trong-nuoc: "Tin trong nước"
+  hop-tac-quoc-te: "Hợp tác quốc tế"
+  su-kien-giai-dau: "Sự kiện giải đấu"
+  goc-nhin-esports: "Góc nhìn Esports"
+
+selectors:
+  article:
+    title:
+      tag: h2
+      class: article-details-title
+    content:
+      tag: p
+      style: text-align:justify;
+    date:
+      field: published_at
+    summary:
+      field: description 

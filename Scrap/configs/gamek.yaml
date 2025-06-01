@@ -1,0 +1,32 @@
+site_name: gamek
+base_url: https://gamek.vn
+search_url_pattern: https://gamek.vn/tim-kiem.chn?keyword={keyword}&page={page}
+
+selectors:
+  search:
+    article_container:
+      tag: div
+      class: f1 w445
+    title:
+      tag: h2
+      class: null
+    summary:
+      tag: p
+      class: null
+    link:
+      inside_title: true
+  article:
+    title:
+      tag: h1
+      data_field: title
+      data_role: title
+    summary:
+      tag: h2
+      data_field: sapo
+      data_role: sapo
+    content:
+      tag: div
+      class: rightdetail_content detailsmallcontent
+    date:
+      tag: p
+      class: mgt15 

@@ -1,0 +1,30 @@
+site_name: motgame
+base_url: https://motgame.vn
+search_url_pattern: https://motgame.vn/search_enginer.html?BRSR={page}&p=search&q={keyword}
+
+selectors:
+  search:
+    article_container:
+      tag: div
+      class: article
+    title:
+      tag: h3
+      class: null
+    summary:
+      tag: div
+      class: article-desc
+    link:
+      inside_title: true
+  article:
+    title:
+      tag: h1
+      class: article-detail-title
+    summary:
+      tag: div
+      class: motgame-detail-desc
+    content:
+      tag: div
+      class: motgame-detail-body
+    date:
+      tag: span
+      class: format_time 

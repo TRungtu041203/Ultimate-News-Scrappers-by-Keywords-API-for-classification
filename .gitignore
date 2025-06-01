@@ -1,0 +1,4 @@
+classified_data/
+cleaned_data/
+*.env
+*.csv

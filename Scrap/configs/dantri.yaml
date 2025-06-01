@@ -1,0 +1,30 @@
+site_name: dantri
+base_url: https://dantri.com.vn/
+search_url_pattern: https://dantri.com.vn/tim-kiem/{keyword}.htm?pi={page}
+
+selectors:
+  search:
+    article_container:
+      tag: article
+      class: article-item
+    title:
+      tag: h3
+      class: article-title
+    summary:
+      tag: div
+      class: article-excerpt
+    link:
+      inside_title: true
+  article:
+    title:
+      tag: h1
+      class: title-page-detail
+    summary:
+      tag: h2
+      class: singular-sapo
+    content:
+      tag: div
+      class: singular-content
+    date:
+      tag: time
+      class: author-time 

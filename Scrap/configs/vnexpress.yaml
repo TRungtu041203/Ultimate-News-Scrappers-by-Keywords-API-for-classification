@@ -1,0 +1,30 @@
+site_name: vnexpress
+base_url: https://vnexpress.net
+search_url_pattern: https://timkiem.vnexpress.net/?q={keyword}&page={page}
+
+selectors:
+  search:
+    article_container:
+      tag: article
+      class: null
+    title:
+      tag: h3
+      class: null
+    summary:
+      tag: p
+      class: description
+    link:
+      inside_title: true
+  article:
+    title:
+      tag: h1
+      class: null
+    summary:
+      tag: p
+      class: description
+    content:
+      tag: article
+      class: fck_detail
+    date:
+      tag: span
+      class: date 
